@@ -133,7 +133,6 @@ def main():
         sys.exit(1)
 
     # Purge snapshots older than 48 hours
-    from datetime import timedelta
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
     del_resp = requests.delete(
         f"{SUPABASE_URL}/rest/v1/five9_agent_snapshots?snapshot_ts=lt.{cutoff}",
