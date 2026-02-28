@@ -117,8 +117,22 @@ def main():
         print(f"FAIL: Supabase returned {resp.status_code}: {resp.text[:300]}")
         sys.exit(1)
 
+    # Purge snapshots older than 48 hours
+    from datetime import timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
+    del_resp = requests.delete(
+        f"{SUPABASE_URL}/rest/v1/five9_agent_snapshots?snapshot_ts=lt.{cutoff}",
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Prefer": "return=representation",
+        },
+        timeout=30,
+    )
+    purged = len(del_resp.json()) if del_resp.status_code == 200 else 0
+
     elapsed = round(time.time() - start, 2)
-    print(f"OK: {len(rows)} agents written | {elapsed}s")
+    print(f"OK: {len(rows)} written | {purged} purged | {elapsed}s")
 
 
 if __name__ == "__main__":
