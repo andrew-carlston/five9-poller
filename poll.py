@@ -7,10 +7,13 @@ Grabs Five9 agent state snapshot and writes to Supabase.
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import requests
 import xml.etree.ElementTree as ET
+
+# Five9 domain timezone is Pacific (UTC-8 / UTC-7 DST)
+FIVE9_TZ_OFFSET_HOURS = -8  # PST; change to -7 during PDT
 
 # ── Config from environment ──────────────────────────────────
 FIVE9_USER = os.environ.get("FIVE9_USER", "")
@@ -83,13 +86,25 @@ def main():
         if agent.get("State") == "Logged Out":
             continue
 
+        # Convert Five9 Pacific timestamp to UTC
+        state_since_raw = agent.get("State Since", "")
+        state_since_utc = ""
+        if state_since_raw:
+            try:
+                naive = datetime.strptime(state_since_raw, "%Y-%m-%d %H:%M:%S")
+                utc_dt = naive - timedelta(hours=FIVE9_TZ_OFFSET_HOURS)
+                state_since_utc = utc_dt.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                state_since_utc = state_since_raw
+
         rows.append({
             "snapshot_ts": snapshot_ts,
             "username": agent.get("Username", ""),
             "full_name": agent.get("Full Name", ""),
             "state": agent.get("State", ""),
             "reason_code": agent.get("Reason Code", ""),
-            "state_since": agent.get("State Since", ""),
+            "state_since": state_since_raw,
+            "state_since_utc": state_since_utc,
             "state_duration": agent.get("State Duration", ""),
             "campaign_name": agent.get("Campaign Name", ""),
             "call_type": agent.get("Call Type", ""),
